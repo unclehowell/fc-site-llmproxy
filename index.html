@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LLM Proxy Dashboard</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;padding:20px}
+    h1{color:#38bdf8;margin-bottom:20px;font-size:1.5rem}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px}
+    .card{background:#1e293b;border-radius:10px;padding:18px;border:1px solid #334155}
+    .card h2{font-size:.85rem;color:#94a3b8;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em}
+    .card .name{font-size:1.1rem;font-weight:600;margin-bottom:4px}
+    .card .ip{font-size:.75rem;color:#64748b;margin-bottom:10px}
+    .badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.7rem;font-weight:700}
+    .healthy{background:#22c55e;color:#fff}.degraded{background:#f59e0b;color:#fff}
+    .unhealthy{background:#ef4444;color:#fff}.unknown{background:#64748b;color:#fff}
+    .cli-list{margin-top:8px;font-size:.75rem;color:#94a3b8}
+    .cli-item{display:inline-block;margin:2px 4px 2px 0;padding:2px 7px;border-radius:8px;background:#0f172a}
+    .cli-ok{color:#4ade80}.cli-miss{color:#f87171}
+    .stats{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+    .stat{background:#1e293b;padding:14px 20px;border-radius:8px;min-width:100px}
+    .stat-value{font-size:1.8rem;font-weight:700;color:#38bdf8}
+    .stat-label{font-size:.7rem;color:#64748b;text-transform:uppercase}
+    button{background:#3b82f6;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:.8rem}
+    button:hover{background:#2563eb}
+    .refresh{float:right;margin-top:-40px}
+    .ts{font-size:.7rem;color:#475569;margin-bottom:16px}
+  </style>
+</head>
+<body>
+  <h1>🤖 LLM Proxy — kiro.financecheque.uk</h1>
+  <div class="ts" id="ts">Loading...</div>
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="total">-</div><div class="stat-label">Machines</div></div>
+    <div class="stat"><div class="stat-value" id="healthy">-</div><div class="stat-label">Healthy</div></div>
+    <div class="stat"><div class="stat-value" id="unhealthy">-</div><div class="stat-label">Unhealthy</div></div>
+  </div>
+  <button onclick="refresh()" style="margin-bottom:20px">↻ Refresh</button>
+  <div class="grid" id="grid"></div>
+  <script>
+    async function refresh() {
+      try {
+        const r = await fetch('/api/status');
+        const d = await r.json();
+        document.getElementById('ts').textContent = 'Last updated: ' + new Date(d.timestamp).toLocaleString();
+        const machines = d.machines || [];
+        document.getElementById('total').textContent = machines.length;
+        document.getElementById('healthy').textContent = machines.filter(m=>m.status==='healthy').length;
+        document.getElementById('unhealthy').textContent = machines.filter(m=>m.status!=='healthy').length;
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        machines.forEach(m => {
+          const clis = m.cli_tools || {};
+          const cliHtml = Object.entries(clis).map(([name, info]) =>
+            '<span class="cli-item ' + (info.installed ? 'cli-ok' : 'cli-miss') + '">' +
+            (info.tmux_running ? '▶' : info.installed ? '○' : '✗') + ' ' + name + '</span>'
+          ).join('');
+          grid.innerHTML += '<div class="card">' +
+            '<h2>' + (m.type||'machine') + '</h2>' +
+            '<div class="name">' + m.name + '</div>' +
+            '<div class="ip">' + (m.url||m.ip||'') + '</div>' +
+            '<span class="badge ' + (m.status||'unknown') + '">' + (m.status||'unknown') + '</span>' +
+            (cliHtml ? '<div class="cli-list">' + cliHtml + '</div>' : '') +
+            '</div>';
+        });
+      } catch(e) {
+        document.getElementById('ts').textContent = 'Error: ' + e.message;
+      }
+    }
+    refresh();
+    setInterval(refresh, 30000);
+  </script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a4da919e0db668f2',t:'MTc5MjUyNjAwOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
